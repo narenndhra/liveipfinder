@@ -110,4 +110,4 @@ This tool is for **authorized security testing only**. Do not use without permis
 ---
 
 ## 👨‍💻 Author
-Developed by Your Name
+Developed by Your Narendra Reddy
