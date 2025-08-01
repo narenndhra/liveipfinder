@@ -1,6 +1,6 @@
-# PingPortRecon - Enterprise IP & Port Scanner
+# liveipfinder - Enterprise IP & Port Scanner
 
-PingPortRecon is a stealthy, enterprise-ready network scanner that:
+liveipfinder is a stealthy, enterprise-ready network scanner that:
 - **Pings hosts first**
 - **Scans ports only on hosts that did not respond to ping**
 - Minimizes network noise while giving accurate results.
@@ -31,8 +31,8 @@ PingPortRecon is a stealthy, enterprise-ready network scanner that:
 ## 🛠 Installation
 Clone the repository:
 ```bash
-git clone https://github.com/yourusername/PingPortRecon.git
-cd PingPortRecon
+git clone https://github.com/narenndhra/liveipfinder
+cd liveipfinder
 ```
 
 Install dependencies:
@@ -53,7 +53,7 @@ Prepare an input file (e.g., `targets.txt`) with IPs and/or subnets:
 
 Run the scanner:
 ```bash
-python3 enterprise_ip_scanner.py targets.txt --threads 100 --timeout 3 --delay 0.5
+python3 liveipfinder.py targets.txt --threads 100 --timeout 3 --delay 0.5
 ```
 
 ---
