@@ -128,5 +128,4 @@ This tool is for **authorized internal or client-side testing only**. Never use 
 
 ## 👨‍💻 Author
 
-Developed with ❤️ by **Narendra Reddy**  
-Security Consultant | Principal Security Engineer
+Developed by Narendra Reddy (Entersoft Security)
