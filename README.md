@@ -2,23 +2,23 @@
 
 `liveipfinder` is a fast, thread-safe **live IP discovery tool**. It:
 
--   ✅ Uses **ICMP** for primary host discovery (fast + low noise)\
--   ✅ Optionally **rescues ICMP-dead hosts** by probing **TCP/UDP**
-    ports you specify\
--   ✅ Prints **CSV-style** to console **and** writes `live_ips.csv`\
+-   ✅ Uses **ICMP** for primary host discovery (fast + low noise)
+-   ✅ Automatically attempts to **rescue ICMP-dead hosts** using
+    TCP/UDP ports (default or custom)
+-   ✅ Prints **CSV-style** to console **and** writes results to
+    `live_ips.csv`
 -   ✅ Includes **smart UDP** probing (payloads + retries + delays) for
-    better responses
+    better accuracy
 
 ------------------------------------------------------------------------
 
-## ✅ What's different now
+## ✅ Key Features
 
--   **No scan "modes"** --- discovery is always **ICMP** (simple +
-    predictable).\
--   **No `--ports`** --- instead use **`--probe-tcp`** /
-    **`--probe-udp`** to *rescue only ICMP-dead* hosts.\
--   **Structured output** with explicit detection reasons (`ICMP`,
-    `TCP`, `UDP`, or `TCP+UDP`) and **port details**.
+-   **Always ICMP-first** --- discovery begins with ICMP pings
+-   **Automatic rescue** --- dead hosts are rechecked via TCP/UDP probes
+-   **Customizable** --- choose your own probe ports or use the defaults
+-   **Structured output** --- explicit detection reasons (`ICMP`, `TCP`,
+    `UDP`, or `TCP+UDP`) with open port details
 
 ------------------------------------------------------------------------
 
@@ -30,13 +30,13 @@ cd liveipfinder
 pip install -r requirements.txt
 ```
 
-> Only dependency: `tqdm`.
+> Only dependency: `tqdm`
 
 ------------------------------------------------------------------------
 
 ## ▶️ Usage
 
-Create `targets.txt` (IPs and/or CIDRs):
+Create a `targets.txt` file with IPs and/or CIDRs:
 
 ``` text
 192.168.1.10
@@ -50,25 +50,31 @@ Create `targets.txt` (IPs and/or CIDRs):
 **ICMP only (fast discovery):**
 
 ``` bash
+python3 liveipfinder.py targets.txt --probe-tcp "" --probe-udp ""
+```
+
+**ICMP + default TCP+UDP rescue (recommended):**
+
+``` bash
 python3 liveipfinder.py targets.txt
 ```
 
-**ICMP + TCP rescue (check these ports only on ICMP-dead IPs):**
+**ICMP + custom TCP rescue:**
 
 ``` bash
 python3 liveipfinder.py targets.txt --probe-tcp "22,80,443,3389"
 ```
 
-**ICMP + UDP rescue (try these UDP ports on ICMP-dead IPs):**
+**ICMP + custom UDP rescue:**
 
 ``` bash
 python3 liveipfinder.py targets.txt --probe-udp "53,123,161,500"
 ```
 
-**ICMP + TCP+UDP rescue (recommended defaults):**
+**ICMP + custom TCP+UDP rescue:**
 
 ``` bash
-python3 liveipfinder.py targets.txt   --probe-tcp "22,80,443,3389"   --probe-udp "53,123,161,500"
+python3 liveipfinder.py targets.txt --probe-tcp "22,443" --probe-udp "53,161"
 ```
 
 ------------------------------------------------------------------------
@@ -90,14 +96,13 @@ python3 liveipfinder.py targets.txt   --probe-tcp "22,80,443,3389"   --probe-udp
   `--delay`               Pause (s) before rescue `0.0`
                           phase                   
 
-  `--probe-tcp`           **TCP ports for         `22,80,443,3389`
-                          dead-host rescue**      
-                          (supports ranges like   
-                          `22,80,1000-1005`)      
+  `--probe-tcp`           TCP ports for dead-host `22,80,443,3389`
+                          rescue (supports ranges 
+                          like `22,80,1000-1005`) 
 
-  `--probe-udp`           **UDP ports for         `53,123,161,500`
-                          dead-host rescue**      
-                          (supports ranges)       
+  `--probe-udp`           UDP ports for dead-host `53,123,161,500`
+                          rescue (supports        
+                          ranges)                 
 
   `--udp-retries`         UDP retries per port    `2`
 
@@ -125,46 +130,42 @@ python3 liveipfinder.py targets.txt   --probe-tcp "22,80,443,3389"   --probe-udp
 
 **Columns**
 
--   **IP** --- target host\
+-   **IP** --- target host
 -   **Ping_Status** --- `Alive` (ICMP replied) or `Dead` (ICMP failed
-    but rescued)\
--   **Rescue_Source** --- `ICMP`, `TCP`, `UDP`, or `TCP+UDP`\
--   **Open_Details** --- `ICMP` for ICMP-alive rows, or the **actual
-    ports** that replied on rescue (`22,80`, `UDP:161`, or combined
-    `TCP:22,443 | UDP:161`)
+    but rescued)
+-   **Rescue_Source** --- `ICMP`, `TCP`, `UDP`, or `TCP+UDP`
+-   **Open_Details** --- `ICMP` for ICMP-alive rows, or the actual ports
+    that replied on rescue
 
 ------------------------------------------------------------------------
 
-## 🔍 How it works (quick)
+## 🔍 How it works
 
-1)  **Phase 1 --- ICMP discovery:** ping each target with a thread
-    pool.\
-2)  **Phase 2 --- Dead-host rescue (optional):** for ICMP-dead IPs only,
-    try your TCP/UDP probe lists.
-    -   **TCP**: marks alive if any port connects.\
-    -   **UDP**: sends small **protocol-aware payloads**
-        (DNS/NTP/SNMP/IKE), uses **retries**, **inter-send delay**, and
-        **wait windows**; marks alive only if a **packet is received**
-        from the target.
+1.  **Phase 1 --- ICMP discovery:** ping each target with a thread pool
+2.  **Phase 2 --- Dead-host rescue (automatic):** for ICMP-dead IPs
+    only, the scanner uses your TCP/UDP probe lists (or defaults)
+    -   **TCP**: marks alive if any port connects
+    -   **UDP**: sends protocol-aware payloads (DNS/NTP/SNMP/IKE), uses
+        retries, delays, and wait windows; marks alive only if a packet
+        is received from the target
 
 ------------------------------------------------------------------------
 
-## ✅ Best practices
+## ✅ Best Practices
 
--   Use fewer threads + a small `--delay` if you need to be gentler on
-    networks.\
--   ICMP may require admin/root on some OSes.\
--   For UDP, many services are **silent** unless payloads match; our
-    payloads improve hit-rate on common ports but results still vary.\
--   If you need **full service enumeration**, run `nmap` on the **final
-    live list**.
+-   Use fewer threads + a small `--delay` to reduce load on networks
+-   ICMP may require admin/root privileges on some OSes
+-   UDP services may remain silent unless the right payload is used;
+    results vary
+-   For deeper service enumeration, run `nmap` on the final live host
+    list
 
 ------------------------------------------------------------------------
 
 ## 🔒 Legal
 
-Use only on networks where you have **explicit permission**. You are
-responsible for compliance with laws and policies.
+Use only on networks where you have **explicit permission**. The author
+is not responsible for misuse.
 
 ------------------------------------------------------------------------
 
