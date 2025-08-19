@@ -1,24 +1,41 @@
 # 💡 liveipfinder --- Live Host Finder (ICMP) with TCP/UDP Dead-Host Rescue
 
-`liveipfinder` is a fast, thread-safe **live IP discovery tool**. It:
+`liveipfinder` is a fast, thread-safe **live IP discovery tool** for
+enterprise networks.
 
--   ✅ Uses **ICMP** for primary host discovery (fast + low noise)
--   ✅ Automatically attempts to **rescue ICMP-dead hosts** using
-    TCP/UDP ports (default or custom)
--   ✅ Prints **CSV-style** to console **and** writes results to
-    `live_ips.csv`
--   ✅ Includes **smart UDP** probing (payloads + retries + delays) for
-    better accuracy
+It helps penetration testers, sysadmins, and network engineers
+**identify live hosts quickly**, even when ICMP is blocked.
 
 ------------------------------------------------------------------------
 
-## ✅ Key Features
+## 🚀 Features at a Glance
 
--   **Always ICMP-first** --- discovery begins with ICMP pings
--   **Automatic rescue** --- dead hosts are rechecked via TCP/UDP probes
--   **Customizable** --- choose your own probe ports or use the defaults
--   **Structured output** --- explicit detection reasons (`ICMP`, `TCP`,
-    `UDP`, or `TCP+UDP`) with open port details
+-   **Input handling**
+    -   Accepts both individual IPs and CIDR subnets
+    -   Expands subnets automatically
+    -   Deduplicates overlapping IPs
+-   **Host discovery**
+    -   ICMP-first for fast liveness checks
+    -   Cross-platform ping handling (Windows/Linux)
+-   **Dead-host rescue (automatic, configurable)**
+    -   If ICMP fails, the scanner rescues using TCP/UDP probes
+    -   Defaults included (`22,80,443,3389` for TCP and `53,123,161,500`
+        for UDP)
+    -   Custom probe ports supported (e.g., `--probe-tcp "22,80"`)
+    -   UDP with retries, delays, jitter, and payloads for
+        DNS/NTP/SNMP/IKE
+-   **Output**
+    -   CSV format (console + `live_ips.csv`)
+    -   `Ping_Status` shows Alive/Dead
+    -   `Rescue_Source` indicates ICMP/TCP/UDP/TCP+UDP
+    -   `Open_Details` shows ports or ICMP reason
+-   **Performance**
+    -   Multithreaded scanning with adjustable `--threads`
+    -   Tunable timeouts, delays, and UDP jitter
+-   **Safety & usability**
+    -   ICMP-only mode available
+    -   Smart defaults make it easy to run out-of-the-box
+    -   Legal disclaimer included
 
 ------------------------------------------------------------------------
 
@@ -36,7 +53,7 @@ pip install -r requirements.txt
 
 ## ▶️ Usage
 
-Create a `targets.txt` file with IPs and/or CIDRs:
+Prepare `targets.txt` with IPs and/or subnets:
 
 ``` text
 192.168.1.10
@@ -45,7 +62,7 @@ Create a `targets.txt` file with IPs and/or CIDRs:
 10.0.1.0/29
 ```
 
-### Quick runs
+### Example runs
 
 **ICMP only (fast discovery):**
 
@@ -97,8 +114,8 @@ python3 liveipfinder.py targets.txt --probe-tcp "22,443" --probe-udp "53,161"
                           phase                   
 
   `--probe-tcp`           TCP ports for dead-host `22,80,443,3389`
-                          rescue (supports ranges 
-                          like `22,80,1000-1005`) 
+                          rescue (supports        
+                          ranges)                 
 
   `--probe-udp`           UDP ports for dead-host `53,123,161,500`
                           rescue (supports        
@@ -107,10 +124,10 @@ python3 liveipfinder.py targets.txt --probe-tcp "22,443" --probe-udp "53,161"
   `--udp-retries`         UDP retries per port    `2`
 
   `--udp-send-delay`      Delay (s) between UDP   `0.05`
-                          sends (per port)        
+                          sends                   
 
   `--udp-wait`            Receive window (s)      `0.30`
-                          after each UDP send     
+                          after UDP send          
 
   `--udp-jitter`          ±Jitter for UDP send    `0.02`
                           delay                   
@@ -118,9 +135,7 @@ python3 liveipfinder.py targets.txt --probe-tcp "22,443" --probe-udp "53,161"
 
 ------------------------------------------------------------------------
 
-## 📊 Output
-
-### Console (CSV-style) and `live_ips.csv`
+## 📊 Output Example
 
     IP, Ping_Status, Rescue_Source, Open_Details
     192.168.1.1, Alive, ICMP, ICMP
@@ -128,37 +143,23 @@ python3 liveipfinder.py targets.txt --probe-tcp "22,443" --probe-udp "53,161"
     192.168.1.3, Dead, UDP, 161
     192.168.1.4, Dead, TCP+UDP, TCP:22,443 | UDP:161
 
-**Columns**
-
--   **IP** --- target host
--   **Ping_Status** --- `Alive` (ICMP replied) or `Dead` (ICMP failed
-    but rescued)
--   **Rescue_Source** --- `ICMP`, `TCP`, `UDP`, or `TCP+UDP`
--   **Open_Details** --- `ICMP` for ICMP-alive rows, or the actual ports
-    that replied on rescue
-
 ------------------------------------------------------------------------
 
-## 🔍 How it works
+## 🔍 Workflow
 
-1.  **Phase 1 --- ICMP discovery:** ping each target with a thread pool
-2.  **Phase 2 --- Dead-host rescue (automatic):** for ICMP-dead IPs
-    only, the scanner uses your TCP/UDP probe lists (or defaults)
-    -   **TCP**: marks alive if any port connects
-    -   **UDP**: sends protocol-aware payloads (DNS/NTP/SNMP/IKE), uses
-        retries, delays, and wait windows; marks alive only if a packet
-        is received from the target
+1.  Expand targets (IPs + subnets → unique IPs)\
+2.  ICMP sweep → Alive/Dead classification\
+3.  Dead-host rescue via TCP/UDP probes\
+4.  Results stored in console + CSV
 
 ------------------------------------------------------------------------
 
 ## ✅ Best Practices
 
--   Use fewer threads + a small `--delay` to reduce load on networks
--   ICMP may require admin/root privileges on some OSes
--   UDP services may remain silent unless the right payload is used;
-    results vary
--   For deeper service enumeration, run `nmap` on the final live host
-    list
+-   Run ICMP + TCP+UDP rescue for best coverage\
+-   Reduce `--threads` and add `--delay` for low-bandwidth links\
+-   Remember: UDP may be silent without correct payloads\
+-   Use results as input to `nmap` for deeper service enumeration
 
 ------------------------------------------------------------------------
 
