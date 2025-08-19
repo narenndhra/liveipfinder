@@ -1,130 +1,172 @@
+# 💡 liveipfinder --- Live Host Finder (ICMP) with TCP/UDP Dead-Host Rescue
 
-# 💡 liveipfinder - Enterprise IP & Port Scanner
+`liveipfinder` is a fast, thread-safe **live IP discovery tool**. It:
 
-`liveipfinder` is a stealthy, enterprise-ready network scanner that:
+-   ✅ Uses **ICMP** for primary host discovery (fast + low noise)\
+-   ✅ Optionally **rescues ICMP-dead hosts** by probing **TCP/UDP**
+    ports you specify\
+-   ✅ Prints **CSV-style** to console **and** writes `live_ips.csv`\
+-   ✅ Includes **smart UDP** probing (payloads + retries + delays) for
+    better responses
 
-- ✅ **Pings hosts first**
-- ✅ **Scans ports only on hosts that did not respond to ping**
-- ✅ Supports **ping-only** or **ping+port scan** modes
-- ✅ Minimizes network noise while giving accurate results
+------------------------------------------------------------------------
 
----
+## ✅ What's different now
 
-## ✅ Features
-- **Stealth Scanning**: ICMP + selective TCP port scanning
-- **Two Scan Modes**:
-  - `ping`: Just check if hosts are alive
-  - `full`: Ping + port scan on "dead" hosts
-- **Enterprise Port List**: Covers common infra devices (F5, Barracuda, Citrix, VPNs, etc.)
-- **Multi-threaded**: Fast, customizable thread count
-- **Clean Output**:
-  - Progress bars for each phase
-  - CSV with confirmed live hosts
-  - Terminal summary table
-- **Input Flexibility**: Accepts individual IPs or CIDR ranges
+-   **No scan "modes"** --- discovery is always **ICMP** (simple +
+    predictable).\
+-   **No `--ports`** --- instead use **`--probe-tcp`** /
+    **`--probe-udp`** to *rescue only ICMP-dead* hosts.\
+-   **Structured output** with explicit detection reasons (`ICMP`,
+    `TCP`, `UDP`, or `TCP+UDP`) and **port details**.
 
----
-
-## 🔍 Default Enterprise Port List
-```text
-21,22,25,80,110,143,443,465,587,993,995,
-8080,8443,9443,10443,2222,4353,4433,
-500,1701,4500,1194,1494,2598,17777,17778,
-161,162
-```
-
----
+------------------------------------------------------------------------
 
 ## 🛠 Installation
 
-```bash
+``` bash
 git clone https://github.com/narenndhra/liveipfinder
 cd liveipfinder
 pip install -r requirements.txt
 ```
 
-> 🔹 Note: `tqdm` is the only dependency.
+> Only dependency: `tqdm`.
 
----
+------------------------------------------------------------------------
 
 ## ▶️ Usage
 
-Prepare a file `targets.txt`:
-```text
+Create `targets.txt` (IPs and/or CIDRs):
+
+``` text
 192.168.1.10
 192.168.1.0/30
 10.0.0.5
 10.0.1.0/29
 ```
 
-### 🟢 Ping-only mode:
-```bash
-python3 liveipfinder.py targets.txt --mode ping
+### Quick runs
+
+**ICMP only (fast discovery):**
+
+``` bash
+python3 liveipfinder.py targets.txt
 ```
 
-### 🟡 Full scan mode (ping + port scan on dead hosts):
-```bash
-python3 liveipfinder.py targets.txt --mode full
+**ICMP + TCP rescue (check these ports only on ICMP-dead IPs):**
+
+``` bash
+python3 liveipfinder.py targets.txt --probe-tcp "22,80,443,3389"
 ```
 
----
+**ICMP + UDP rescue (try these UDP ports on ICMP-dead IPs):**
+
+``` bash
+python3 liveipfinder.py targets.txt --probe-udp "53,123,161,500"
+```
+
+**ICMP + TCP+UDP rescue (recommended defaults):**
+
+``` bash
+python3 liveipfinder.py targets.txt   --probe-tcp "22,80,443,3389"   --probe-udp "53,123,161,500"
+```
+
+------------------------------------------------------------------------
 
 ## ⚙️ Command-Line Options
 
-| Option        | Description                                         | Default            |
-|---------------|-----------------------------------------------------|--------------------|
-| `input_file`  | File with IPs and/or CIDRs                         | (required)         |
-| `--mode`      | `ping` or `full` (ping + port scan)               | `full`             |
-| `--threads`   | Number of concurrent threads                       | 50                 |
-| `--timeout`   | Timeout per ping/port check (in seconds)           | 2                  |
-| `--delay`     | Delay between port scans (stealth mode)            | 0.0                |
-| `--ports`     | Comma-separated list of ports to scan (in full mode) | Enterprise default |
+  -----------------------------------------------------------------------
+  Option                  Description             Default
+  ----------------------- ----------------------- -----------------------
+  `input_file`            File with IPs and/or    (required)
+                          CIDRs                   
 
----
+  `--threads`             Worker threads for      `80`
+                          ping/probes             
+
+  `--timeout`             Timeout (s) for         `2.0`
+                          ping/TCP/UDP ops        
+
+  `--delay`               Pause (s) before rescue `0.0`
+                          phase                   
+
+  `--probe-tcp`           **TCP ports for         `22,80,443,3389`
+                          dead-host rescue**      
+                          (supports ranges like   
+                          `22,80,1000-1005`)      
+
+  `--probe-udp`           **UDP ports for         `53,123,161,500`
+                          dead-host rescue**      
+                          (supports ranges)       
+
+  `--udp-retries`         UDP retries per port    `2`
+
+  `--udp-send-delay`      Delay (s) between UDP   `0.05`
+                          sends (per port)        
+
+  `--udp-wait`            Receive window (s)      `0.30`
+                          after each UDP send     
+
+  `--udp-jitter`          ±Jitter for UDP send    `0.02`
+                          delay                   
+  -----------------------------------------------------------------------
+
+------------------------------------------------------------------------
 
 ## 📊 Output
 
-### ✅ Summary
-```
-[+] Total targets: 254
-[+] Threads: 50 | Timeout: 2s | Ports: 28 ports | Mode: full
+### Console (CSV-style) and `live_ips.csv`
 
-[+] Phase 1: Pinging targets...
-Pinging: 100%|████████████████████████████████████████████████████| 254/254 [00:08<00:00, 29.42it/s]
+    IP, Ping_Status, Rescue_Source, Open_Details
+    192.168.1.1, Alive, ICMP, ICMP
+    192.168.1.2, Dead, TCP, 22,80
+    192.168.1.3, Dead, UDP, 161
+    192.168.1.4, Dead, TCP+UDP, TCP:22,443 | UDP:161
 
-[+] Ping complete! Alive (Ping): 73 | Dead: 181
+**Columns**
 
-[+] Phase 2: Scanning ports on dead IPs (181)...
-Port Scan: 100%|██████████████████████████████████████████████████| 181/181 [03:44<00:00,  1.24s/it]
+-   **IP** --- target host\
+-   **Ping_Status** --- `Alive` (ICMP replied) or `Dead` (ICMP failed
+    but rescued)\
+-   **Rescue_Source** --- `ICMP`, `TCP`, `UDP`, or `TCP+UDP`\
+-   **Open_Details** --- `ICMP` for ICMP-alive rows, or the **actual
+    ports** that replied on rescue (`22,80`, `UDP:161`, or combined
+    `TCP:22,443 | UDP:161`)
 
-[+] Scan complete!
-Alive from Ping: 73
-Alive from Ports: 1
-Total Live Hosts: 74
-```
+------------------------------------------------------------------------
 
-### ✅ CSV Output (`live_ips.csv`)
-```csv
-IP, Ping_Status, Port_Status, Open_Ports
-65.123.29.29, Alive, Skipped, -
-65.123.29.50, Dead, Open, 443,8443
-```
+## 🔍 How it works (quick)
 
----
+1)  **Phase 1 --- ICMP discovery:** ping each target with a thread
+    pool.\
+2)  **Phase 2 --- Dead-host rescue (optional):** for ICMP-dead IPs only,
+    try your TCP/UDP probe lists.
+    -   **TCP**: marks alive if any port connects.\
+    -   **UDP**: sends small **protocol-aware payloads**
+        (DNS/NTP/SNMP/IKE), uses **retries**, **inter-send delay**, and
+        **wait windows**; marks alive only if a **packet is received**
+        from the target.
 
-## ✅ Best Practices
+------------------------------------------------------------------------
 
-- Use fewer threads and add delay (`--delay`) for production/stealth scans.
-- Requires **admin/root** privileges for ping on some systems.
-- For large networks, split into smaller CIDR/IP batches.
-- Use `--mode ping` for safe, quick discovery without touching ports.
+## ✅ Best practices
 
----
+-   Use fewer threads + a small `--delay` if you need to be gentler on
+    networks.\
+-   ICMP may require admin/root on some OSes.\
+-   For UDP, many services are **silent** unless payloads match; our
+    payloads improve hit-rate on common ports but results still vary.\
+-   If you need **full service enumeration**, run `nmap` on the **final
+    live list**.
 
-## 🔒 Disclaimer
-This tool is for **authorized internal or client-side testing only**. Never use without permission. Always follow local laws and company policy.
+------------------------------------------------------------------------
 
----
+## 🔒 Legal
+
+Use only on networks where you have **explicit permission**. You are
+responsible for compliance with laws and policies.
+
+------------------------------------------------------------------------
 
 ## 👨‍💻 Author
 
